@@ -284,7 +284,9 @@ for (k in 1:K) {
 }
 print("The cv k=10 error of ridge regression is:")
 print(mean(errors))
-
+#We get a cv error of 0.0437, which is higher than the subetset models where we got 0.0234, it seems strange that its almost double
+#One reason why might be because we didnt standardized predictors for subset models, but one would think this would lead
+# to a higher error and not a lower one
 
 
 #i) lasso regression
@@ -297,8 +299,6 @@ print(coef(fit.lasso.final))
 
 # We can see that t1, pr, bw, and cum.n and intercept has been pushed to zero
 
-set.seed(180601)
-errors <- c()
 N <- nrow(X)
 K <- 10
 index <- sample(rep(1:K,ceiling(N/K))[1:N])
@@ -319,3 +319,5 @@ for (k in 1:K) {
 print("The cv k=10 error of lasso regression is:")
 print(mean(errors))
 #it seems both the lasso and the ridge has the exact same error, which seems strange
+# There is not much more reflection we can do towards the subset error, in regards to the lasso error as the lasso 
+# and ridge error was the same
