@@ -1,2 +1,321 @@
+rm(list=ls())
+#a)
 nuclear_data <- read.table(file = "Obligs/nuclear.dat"  , header = TRUE, sep = "\t")
-y = log(nuclear_data$cost)
+# Instead of transforming the response variable as a seperate variable we can instead transform the variable directly in the object
+# This makes it so that the lm function is less complex
+nuclear_data$log_cost <- log(nuclear_data$cost)
+
+head(nuclear_data)
+fit.lm <- lm(log_cost~ date + t1 + t2 + cap + pr + ne + ct + bw + cum.n + pt , data=nuclear_data)
+print(names(fit.lm$model))
+summary(fit.lm)
+
+conf_int = confint(fit.lm, c("t1","t2","bw"),level = 0.95)
+print(conf_int)
+
+#b)
+
+# Since we have that Y = log(Z)
+# And that the prediction interval is given with the expression we just take the exp(log(Z)) = exp(expression) to solve for Z
+# We then get the expression of Z in a prediction interval e = (exp(L),exp(U))
+
+new_value <- data.frame(date=70.0,t1=13,t2=50,cap=800,pr=1,ne=0,ct=0,bw=1,cum.n=8,pt=1)
+y_hat <- t(as.matrix(c(1,as.numeric(new_value)))) %*% as.matrix(coef(fit.lm)) # man kan like gjerne gjøre dette med predict, men syntes dette ga mer forståelse
+
+print(dim(as.matrix(c(1,as.numeric(new_value))))) 
+print(dim(t(as.matrix(coef(fit.lm)))))
+print(y_hat)
+
+
+# for å løse prediksjonsintervallet med tilnærmingen gitt trenger vi N, p, X, XTX^-1, og t distribusjonen
+X <- model.matrix(fit.lm)
+print("the model matrix:")
+print(X)
+XTX_inv <- solve(t(X) %*% X)
+print("XTX_inverse matrx")
+print(XTX_inv)
+
+sigma <- summary(fit.lm)$sigma
+
+
+# make a t distribution 
+alpha <- 0.5 # for a 95% prediction interval
+N <- nrow(nuclear_data)
+p <- length(coef(fit.lm))
+t_value <- qt(1-alpha/2, df=N-p-1)
+
+x_matrix <- as.matrix(c(1,as.numeric(new_value)))
+lower <- y_hat - t_value * sigma * sqrt(1 + t(x_matrix)%*%XTX_inv%*%x_matrix)
+upper <- y_hat + t_value * sigma * sqrt(1 + t(x_matrix)%*%XTX_inv%*%x_matrix)
+lower <- exp(lower)
+upper <- exp(upper)
+print("The 1-a prediction interval has the following distribution around y_hat")
+print(lower)
+print(exp(y_hat))
+print(upper)
+
+#c)
+# im assuming we are to do a F test as that was what was done in the week5 code 
+
+# F-test for the effect of t1
+print("F test for t1")
+fit.reduced_t1 <- lm(log_cost~ date + t2 + cap + pr + ne + ct + bw + cum.n + pt , data=nuclear_data)
+RSS <- sum(fit.lm$residuals^2)
+RSS0 <- sum(fit.reduced_t1$residuals^2)
+q <- 1 
+Fobs <- ((RSS0-RSS)/q)/(RSS/(N-p-1))
+print(Fobs)
+print("The rejection value is:")
+print(qf(0.95,q,N-p-1))
+print("The p value is:")
+print(1-pf(Fobs,q,N-p-1))
+anova(fit.reduced_t1,fit.lm)
+#the Pr(>F) seems to be slightly different from the anova and calculating in manually
+
+# F-test for effects of t2
+print("F test for t2")
+fit.reduced_t2 <- lm(log_cost~ date + t1 + cap + pr + ne + ct + bw + cum.n + pt , data=nuclear_data)
+RSS <- sum(fit.lm$residuals^2)
+RSS0 <- sum(fit.reduced_t2$residuals^2)
+q <- 1 
+Fobs <- ((RSS0-RSS)/q)/(RSS/(N-p-1))
+print(Fobs)
+print("The rejection value is:")
+print(qf(0.95,q,N-p-1))
+print("The p value is:")
+print(1-pf(Fobs,q,N-p-1))
+
+anova(fit.reduced_t2,fit.lm)
+
+# F-test for the effect of bw
+print("F test for bw")
+fit.reduced_bw <- lm(log_cost~ date + t1 + t2 + cap + pr + ne + ct + cum.n + pt , data=nuclear_data)
+RSS <- sum(fit.lm$residuals^2)
+RSS0 <- sum(fit.reduced_bw$residuals^2)
+q <- 1 
+Fobs <- ((RSS0-RSS)/q)/(RSS/(N-p-1))
+print(Fobs)
+print("The rejection value is:")
+print(qf(0.95,q,N-p-1))
+print("The p value is:")
+print(1-pf(Fobs,q,N-p-1))
+anova(fit.reduced_bw,fit.lm)
+
+# F-test for the combined effects of t1, t2 and bw
+print("F test for combined")
+fit.reduced_combined <- lm(log_cost~ date + cap + pr + ne + ct + cum.n + pt , data=nuclear_data)
+RSS <- sum(fit.lm$residuals^2)
+RSS0 <- sum(fit.reduced_combined$residuals^2)
+q <- 3 
+Fobs <- ((RSS0-RSS)/q)/(RSS/(N-p-1))
+print(Fobs)
+print("The rejection value is:")
+print(qf(0.95,q,N-p-1))
+print("The p value is:")
+print(1-pf(Fobs,q,N-p-1))
+anova(fit.reduced_combined,fit.lm)
+
+#We can conclude with these tests that are these predictors are significant, and that t1 has the most significance
+
+# d)
+library(leaps)
+regfit.fwd <- regsubsets(log_cost~ t1 + t2 + date + cap + pr + ne + ct + bw + cum.n + pt , data=nuclear_data,method="forward",nvmax=10)
+regfit.fwd_summary <- summary(regfit.fwd) 
+print(regfit.fwd_summary)
+print("The predictors where added in the following order")
+print("pt -> cap -> date -> ne -> ct -> cum.n -> bw -> pr -> t2 -> t1") #this seems to contradict earlier when t1 had a bigger p value than bw
+N <- nrow(nuclear_data)
+num_pred <- apply(regfit.fwd_summary$which,1,sum)-1
+regfit.fwd_summary$aic <- regfit.fwd_summary$bic-log(N) # Calculating aic from bic 
+p.aic.fwd <- which.min(regfit.fwd_summary$aic)  # Choosing the model with the smallest aic/bic
+p.bic.fwd <- which.min(regfit.fwd_summary$bic)
+print("subset amount for aic")
+print(p.aic.fwd)
+print("subset amount for bic")
+print(p.bic.fwd)
+# We can see that both aic and bic leads to using 5 predictors
+
+# e)
+
+regfit.bwd <- regsubsets(log_cost~ t1 + t2 + date + cap + pr + ne + ct + bw + cum.n + pt , data=nuclear_data,method="backward",nvmax=10)
+regfit.bwd_summary <- summary(regfit.bwd) 
+print(regfit.bwd_summary)
+print("The predictors where added in the following order")
+print("pt -> cap -> date -> ne -> ct -> cum.n -> t2-> pr -> bw -> t1") 
+N <- nrow(nuclear_data)
+num_pred <- apply(regfit.bwd_summary$which,1,sum)-1
+regfit.bwd_summary$aic <- regfit.bwd_summary$bic-log(N) # Calculating aic from bic 
+p.aic.bwd <- which.min(regfit.bwd_summary$aic)  # Choosing the model with the smallest aic/bic
+p.bic.bwd <- which.min(regfit.bwd_summary$bic)
+print("subset amount for aic")
+print(p.aic.bwd)
+print("subset amount for bic")
+print(p.bic.bwd)
+
+# We can see that we still have 5 predictors used for both aic and bic, but for backward selection
+# bw and t2 has switced places on when they are removed/added
+
+# f) 
+#since both aic and bic had the same amount of predictors for both, i will only consider the 
+# difference between the forward selection and backward selection 
+
+# the following idea is taken from chatgpt, but i feel that it generalizes well, 
+# the idea is to make a list of of strings which describes the models, this makes it so that there
+# can be many more models, and i feel that it is more flexible code, even though it has more complex syntax
+
+formulas <- list(
+    forward_model = as.formula(paste("log_cost ~",paste(names(coef(regfit.fwd,p.aic.fwd))[-1],collapse=" + "))),
+    backward_model = as.formula(paste("log_cost ~",paste(names(coef(regfit.bwd,p.aic.bwd))[-1],collapse=" + ")))
+    # here we can add two more if there is different models for aic and bic on forward and backward selection
+)
+
+print(formulas)
+print(length(formulas))
+
+#here we can actually see that since both models only have only 5 predictors, which is before the difference bw and t2
+# being switched, in other words there is no difference between the models
+
+
+set.seed(180601)
+cv_errors <- rep(0,length(formulas))
+K <- 10
+index <- sample(rep(1:K,ceiling(N/K))[1:N])
+for (m in 1:length(formulas)) {
+    for (k in 1:K) {
+        train_data <- nuclear_data[(1:N)[-which(index == k)], ]
+        test_data <- nuclear_data[(1:N)[which(index == k)], ]
+
+        fit_model <- lm(formulas[[m]], data=nuclear_data)
+
+        for (i in which(index == k)) {
+            cv_errors[m] <- cv_errors[m] + (nuclear_data$log_cost[i]-predict(fit_model, newdata=nuclear_data[i,]))^2/N
+        }
+    }
+}
+
+names(cv_errors) <- c("forward model", "backward_model")
+print(cv_errors)
+# They of course have the same error as they both are the same models
+
+# g bootstrap)
+B <- 1000
+N <- nrow(nuclear_data)
+error_train_all <- rep(0,length(formulas))
+for(m in 1:length(formulas)) {
+    fit_model <- lm(formulas[[m]], data=nuclear_data)
+    error_train_all[m] <- sum(fit_model$residuals^2)
+}
+
+err_boot_1 <- rep(0, length(formulas))
+n_test = 0
+
+for (b in 1:B) {
+    set.seed(b) # i dont understand why this can simple be done with one set seed outside loop
+    index <- sample(N, replace = TRUE)
+    temp_train_data <- nuclear_data[index,]
+    temp_test_data <- nuclear_data[-index,]
+    n_test <- n_test + nrow(temp_test_data)
+
+    for (m in 1:length(formulas)) {
+        fit_model <- lm(formulas[[m]],data = temp_train_data)
+        if (nrow(temp_test_data) > 0) {
+            err_boot_1[m] <- err_boot_1[m] + sum((temp_test_data$log_cost - predict(fit_model,newdata=temp_test_data))^2)
+        } 
+    }
+}
+# I get some error, where i get an error message that predict has some doubtful cases, i tried to understand why this is
+# it seems like it might be due to some colinearlity where our predictors are not full rank, to my understanding we can 
+# mitigate this with the choosing samples with more predictors, and some other suggestions by chat gpt, but ive decided
+# to let it be as is to not overcomplicate the code
+names(err_boot_1) <- names(formulas)
+
+#normalize bootstrap test error
+err_boot_1 <- err_boot_1/n_test
+
+err_boot_632 <- 0.368 * error_train_all + 0.632 * err_boot_1
+names(err_boot_632) <- names(err_boot_632)
+print(err_boot_632)
+# again we have the same model so we get the same error because we have the same models, (it should be slightly random so, it seems a bit weird that theyre the same)
+
+#h)
+# We start by standardising the numerical covariates as done in week 7
+print(head(nuclear_data))
+p <- ncol(nuclear_data) - 1 # We standardize all variables except log_cost since it is the last and the response variable
+# techically we also standardize cost, but this doesnt really do anything
+nuclear_stand <- nuclear_data
+
+for (j in 1:p) {
+    if(!is.factor(nuclear_data[,j])) {
+        nuclear_stand[,j] <- (nuclear_stand[,j]-mean(nuclear_stand[,j]))/sd(nuclear_stand[,j])
+    }
+}
+
+
+y <- log(nuclear_data$cost) #we dont want a standardized response variable, as it produces NaNs
+X <- model.matrix(log_cost~ date + t1 + t2 + cap + pr + ne + ct + bw + cum.n + pt , data=nuclear_stand)
+
+set.seed(180601)
+
+fit.ridge.cv <- cv.glmnet(X,y,alpha=0,nfolds=10)
+best_lamda_ridge <- fit.ridge.cv$lambda.min
+print(best_lamda_ridge)
+
+fit.ridge.final <- glmnet(X,y,alpha=0,lamda=best_lamda_ridge)
+print(coef(fit.ridge.final))
+
+set.seed(180601)
+errors <- c()
+N <- nrow(X)
+K <- 10
+index <- sample(rep(1:K,ceiling(N/K))[1:N])
+for (k in 1:K) {
+    train_data <- X[index != k,]
+    test_data <- X[index == k,] 
+
+    y_train <- y[index != k]
+    y_test <- y[index == k]
+
+    fit.ridge.final <- glmnet(train_data,y_train,alpha=0,lambda=best_lamda_ridge)
+
+    predictions <- predict(fit.ridge.final, newx=test_data)
+
+    mse <- mean((y_test - predictions)^2)
+    errors <- c(errors,mse)
+}
+print("The cv k=10 error of ridge regression is:")
+print(mean(errors))
+
+
+
+#i) lasso regression
+fit.lasso.cv <- cv.glmnet(X,y,alpha=1,nfolds=10)
+best_lamda_lasso <- fit.lasso.cv$lambda.min
+print(best_lamda_lasso)
+
+fit.lasso.final <- glmnet(X,y,alpha=1,lambda=best_lamda_lasso)
+print(coef(fit.lasso.final))
+
+# We can see that t1, pr, bw, and cum.n and intercept has been pushed to zero
+
+set.seed(180601)
+errors <- c()
+N <- nrow(X)
+K <- 10
+index <- sample(rep(1:K,ceiling(N/K))[1:N])
+for (k in 1:K) {
+    train_data <- X[index != k,]
+    test_data <- X[index == k,] 
+
+    y_train <- y[index != k]
+    y_test <- y[index == k]
+
+    fit.lasso.final <- glmnet(train_data,y_train,alpha=1,lambda=best_lamda_lasso)
+
+    predictions <- predict(fit.lasso.final, newx=test_data)
+
+    mse <- mean((y_test - predictions)^2)
+    errors <- c(errors,mse)
+}
+print("The cv k=10 error of lasso regression is:")
+print(mean(errors))
+#it seems both the lasso and the ridge has the exact same error, which seems strange

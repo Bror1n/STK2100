@@ -1,5 +1,5 @@
 #a
-college <- read.csv("College.csv")
+college <- read.csv("Weekly/College.csv")
 View(college)
 
 #b 
