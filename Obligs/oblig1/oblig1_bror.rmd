@@ -1,0 +1,5 @@
+# Oblig1 Bror Johannes Tidemand Ruud STK2100 
+Oppgave 2a
+```{R}
+print("epler er kule")
+```

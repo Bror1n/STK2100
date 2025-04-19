@@ -242,6 +242,10 @@ regfit.bwd = regsubsets(lpsa~.-train,data=subset(prostate,train==TRUE),nvmax=nvm
 summary.regfit.bwd <- summary(regfit.bwd)
 show(summary.regfit.bwd)
 
+print(summary.regfit.fwd)
+print(summary.regfit.bwd)
+
+
 # R^2 when including each of the covariates
 plot(regfit.bwd,scale="r2") 
 
