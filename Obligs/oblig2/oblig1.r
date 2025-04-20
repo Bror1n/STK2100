@@ -192,7 +192,7 @@ qda.error <- mean(pred.qda$class != test$class)
 
 print(qda.error)
 
-#d) (i)
+#d) (i/ii)
 library("nnet")
 
 # Normalizing predictors
