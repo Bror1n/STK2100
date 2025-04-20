@@ -139,7 +139,113 @@ print(mse.tree)
 # is by far the simplest
 
 
+# Problem 3
+#a) (i)
+vert <- read.csv("https://www.uio.no/studier/emner/matnat/math/STK2100/v25/oblig/vertebral-column.csv",header=TRUE)
+head(vert)
+
+vert$class <- as.factor(vert$class)
 
 
+# We can make sure to keep the same proportions of the two classes if we sample from them individually
+index_0 <- which(vert$class == 0)
+index_1 <- which(vert$class == 1)
+
+train_index_0 <- sample(index_0, floor(2/3 * length(index_0)))
+train_index_1 <- sample(index_1, floor(2/3 * length(index_1)))
+train_index <- c(train_index_0, train_index_1) 
+
+train <- vert[train_index,]
+test <- vert[-train_index,]
+
+# (ii)
+fit.logit <- glm(class ~., data=train,family=binomial)
+summary(fit.logit)
+
+# it seems that only degrS and pelVRad along with the intercept are significant for classifying whether the person is healthy or not. While all other predictors
+# have p values over 0.05
+
+# (iii)
+pred.prob <- predict(fit.logit, newdata=test,type="response")
+pred.logit <- ifelse(pred.prob > 0.5,1,0)
+logit.error <- mean(pred.logit != test$class)
+
+print(logit.error)
+
+#b) (i)
+library("MASS")
+
+fit.lda <- lda(class ~., data=train)
+
+# (ii)
+pred.lda <- predict(fit.lda, newdata=test)
+lda.error <- mean(pred.lda$class != test$class)
+
+print(lda.error)
+
+#c) (i)
+fit.qda <- qda(class ~., data=train)
+
+# (ii)
+pred.qda <- predict(fit.qda, newdata=test)
+qda.error <- mean(pred.qda$class != test$class)
+
+print(qda.error)
+
+#d) (i)
+library("nnet")
+
+# Normalizing predictors
+
+# Ive decided to normalize the data slightly different to the lecture in week 12, the reason is because it is to my understanding bad practice
+# To use data from the test set to train our model, as it can affect our accuracy on showing how good our actually is, since allowing the test data
+# to affect the mean and standard deviation can bias our model. 
+
+# I instead therefore use the mean and standard deviation of the training data to standardize the test set
+
+train_scaled <- scale(train[, -which(names(train) == "class")]) #We dont normalize the qualtiative variable since it is not continious
+test_scaled <- scale(test[, -which(names(test)=="class")],
+    center = attr(train_scaled,"scaled:center"),
+    scale = attr(train_scaled,"scaled:scale"))
+
+train.standard <- cbind(class = train$class, as.data.frame(train_scaled)) # Adding the qualitative variables back
+test.standard <- cbind(class = test$class, as.data.frame(test_scaled))
 
 
+# Ive decided to combine (i) and (ii) slightly i want to evaluate right after finishing fitting each model, this way i dont have to do another iteration 
+# through every model again to predict and calculate misclassification error. I find this way more clean.
+
+# I also dont want to iterate throughn decays and then find the best, and then afterwards iterate through sizes. As i dont think this 
+# will necessarily find the best decay/size combination. I therefore iterate through every single combination. This should not be computationally heavy
+# as these are very simple neural networks.
+
+sizes <- c(1, 2, 3, 4, 5, 6, 7, 8, 10)
+decays <- c(0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1)
+
+results <- expand.grid(size=sizes,decay=decays)
+results$error <- NA
+
+for (i in 1:nrow(results)) {
+    fit <- nnet(class ~.,data = train.standard, size=results$size[i], decay=results$decay[i], maxit=100,trace=FALSE)
+
+    pred <- predict(fit, newdata = test.standard)
+    pred.class <- ifelse(pred > 0.5,1,0)
+
+
+    results$error[i] <- mean(pred.class != test.standard$class)
+} 
+ordered.results <- results[order(results$error),]
+print(ordered.results[0:10,])
+
+# There seem to really be no clear pattern on what decay values und3er 0.1 are the best and there also seem to be no apparent benefit to having a larger network
+
+print("The error from the logistic regression is:") 
+print(logit.error)
+print("The error from the LDA is:") 
+print(lda.error)
+print("The error from the QDA is:") 
+print(qda.error)
+print("The smallest error for the single layer neural network is:") 
+print(ordered.results[1,])
+
+#The neural network seems to do the best followed by the logistic regression. 
