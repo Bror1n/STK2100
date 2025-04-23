@@ -98,9 +98,9 @@ print(mse.lm)
 
 #c (i)
 library(tree)
-fit.tree <- tree(wage ~ ., data=train,Nobs=nrow(train))
+fit.tree <- tree(wage ~ ., data=train,control=tree.control(nobs=nrow(train),mindev=0.001)) #Fit a large tree
 plot(fit.tree)
-text(fit.tree,all=TRUE)
+text(fit.tree)
 
 # We can see that the splits are mainly in education. The first split is in Some college or less, and collage grad and more.
 # The left tree then splits in whether they have health insurance or not. And the right tree splits on college grad and advanced degree. 
@@ -182,6 +182,8 @@ pred.lda <- predict(fit.lda, newdata=test)
 lda.error <- mean(pred.lda$class != test$class)
 
 print(lda.error)
+# The LDA model assumes a gaussian distribution with linear decision boundries. Our logistic model seems to do slighlty better than lda
+# this might imply that the gaussian assumption does not fit our data. The simple model therefore makes a better approximation.
 
 #c) (i)
 fit.qda <- qda(class ~., data=train)
@@ -191,6 +193,8 @@ pred.qda <- predict(fit.qda, newdata=test)
 qda.error <- mean(pred.qda$class != test$class)
 
 print(qda.error)
+# QDA seems to do a even worse job than lda, this may be because the decision border are not nonlinear. Therefor having quadratic 
+# boundries may overfit the model to our training data.
 
 #d) (i/ii)
 library("nnet")
@@ -226,7 +230,7 @@ results <- expand.grid(size=sizes,decay=decays)
 results$error <- NA
 
 for (i in 1:nrow(results)) {
-    fit <- nnet(class ~.,data = train.standard, size=results$size[i], decay=results$decay[i], maxit=100,trace=FALSE)
+    fit <- nnet(class ~.,data = train.standard, size=results$size[i], decay=results$decay[i], maxit=500,trace=FALSE)
 
     pred <- predict(fit, newdata = test.standard)
     pred.class <- ifelse(pred > 0.5,1,0)
@@ -249,3 +253,13 @@ print("The smallest error for the single layer neural network is:")
 print(ordered.results[1,])
 
 #The neural network seems to do the best followed by the logistic regression. 
+# It seems like making linear assumptions regarding the splitting of the data does well, hence why the lda with linear decision 
+# boundries does better than qda. This also applies for logistic regression which is also linear in its boundries. Im a bit
+# confused on how a signle layer neural network does better. As it is also only linear when it doesnt have multiple layers.
+# But there seems to be a high variance in terms of which parameters gets the best test error. As they seem to change with
+# every iteration of the script. 
+
+# In conclusion the models which makes more linear assumptions does better. Which means non linear fitting by qda, overfits 
+# nonlinearly to the training data. Neural networks seems to do the bast, but this may come from us fitting many different models
+# rather than a single layer neural network being superior.
+
