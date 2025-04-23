@@ -1,0 +1,20 @@
+---
+title: "oblig2"
+output: html_document
+date: "2025-04-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## STK2100 Oblig 2 Bror
+
+Oppgave 2
+```{r 2a}
+
+```
+
+```{r 2c}
+summary(cars)
+```
