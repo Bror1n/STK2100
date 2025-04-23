@@ -16,7 +16,7 @@ wage$health_ins <- as.factor(wage$health_ins)
 summary(wage)
 
 #a) (i)
-length(wage$maritl) #length of dataset is 3000
+print(length(wage$maritl)) #length of dataset is 3000
 
 # I was a bit unsure on how to do statified sampling on a data set with so many qualitative varibales
 # so i instead do a random sample, and then afterward check if all all the qualitative varibales are 
