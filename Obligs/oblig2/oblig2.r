@@ -98,7 +98,7 @@ print(mse.lm)
 
 #c (i)
 library(tree)
-fit.tree <- tree(wage ~ ., data=train)
+fit.tree <- tree(wage ~ ., data=train,Nobs=nrow(train))
 plot(fit.tree)
 text(fit.tree,all=TRUE)
 
