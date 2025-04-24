@@ -14,9 +14,9 @@ knitr::opts_chunk$set(echo = TRUE)
 a)
 
 Load the data
-```{r 2 }
+```{r 2}
 wage <- read.csv("https://www.uio.no/studier/emner/matnat/math/STK2100/v25/oblig/wage.csv",header=TRUE)
-head(wage)
+#head(wage)
 #summary(wage) #We can see that the qualitative variables are not properly understood by R
 
 # Make R treat all qualitative factors as qualitative
@@ -36,7 +36,7 @@ I was a bit unsure on how to do statified sampling on a data set with so many qu
 
 Got some help from chatgpt from this part especially using function(v)
 
-```{r 2a (i)}
+```{r 2a_i}
 print(length(wage$maritl)) #length of dataset is 3000
 
 set.seed(420)
@@ -64,21 +64,21 @@ while(!valid_split) {
 Tried tweaking the values to maximize the spliting of qualitative values to be distributed as equally as possbible following a 70/30 split. I now realize this program was overkill but i thought there was a higher percentage of the qualitative variables not being present # (ii)
 
 (ii)
-```{r 2a (ii)}
+```{r 2a_ii}
 fit.lm <- lm(wage ~ .,data = train)
 summary(fit.lm)
 ```
 It seems that every covariate other than raceOther(0.754) is significant to a varying degree. Where raceWhite(0.04) follows as the next least significant predictor. While being umarried(3.8e-16) and not having health isurance(2e-16) seems to be the most statistically significant on predicting wage
 
 (iii)
-```{r 2a (iii)}
+```{r 2a_iii)}
 pred.lm <- predict(fit.lm, newdata=test)
 mse.lm <- mean((test$wage - pred.lm)^2)
 print(mse.lm)
 ```
 
 2b) (i)
-```{r 2b (i)}
+```{r 2b_i}
 library(gam)
 fit.gam <- gam(wage ~ s(year, df=4) + s(age, df=4) + maritl + race + education + jobclass + health + health_ins , data = train)
 summary(fit.gam)
@@ -98,7 +98,7 @@ In conclusion we can model year linearly as it does not matter much, despite it 
 (iv)
 From the summary of fit.gam it seems that all the covariates are significant and where jobless seems to be the least significant with a p value of 0.00147. It therefore seems beneficial to keep all the predictors.
 
-```{r 2 }
+```{r 2b_iv}
 pred.gam <- predict(fit.gam, newdata=test)
 mse.gam <- mean((test$wage-pred.gam)^2)
 print("The mse prediciton error for the gam is")
@@ -109,7 +109,7 @@ print(mse.lm)
 The MSE for the two models are about the same with the MSE for the GAM being slighly better. Since the difference is small i would prefer using the simpler model. It would be beneficial to do a more robust test of the model to get a better estimate of the different. One way we could do this is using cross validation
 
 2c) (i)
-```{r 2c (i)}
+```{r 2c_i}
 library(tree)
 fit.tree <- tree(wage ~ ., data=train,control=tree.control(nobs=nrow(train),mindev=0.001)) #Fit a large tree
 plot(fit.tree)
@@ -120,14 +120,13 @@ We can see that the splits are mainly in education. The first split is in Some c
 We can see from this tree that people with higher degrees and health insurance are more likely to have a higher wage. This is similar to our previous models where health insurance and education were among the most significant.
 
 (ii)
-```{r 2c (ii)}
+```{r 2c_ii}
 cv.tree.result <- cv.tree(fit.tree, K= 10)
 
 plot(cv.tree.result$size,cv.tree.result$dev, type="b",xlab="Tree size",ylab="Deviance",main="Cross Validation")
 
-#We can see from that plot that the best tree has 5 terminal nodes, it even looks like we should add more as deviance doesnt seem to stabilize
-# In other words we keep the original tree
-pruned.tree <- prune.tree(fit.tree,best=5)
+#Its a bit hard to see where the deviance flattens, but it seems to do so around 7.
+pruned.tree <- prune.tree(fit.tree,best=7) #If we look closer at the data used for the plot the deviance flattens around 5
 plot(pruned.tree)
 text(pruned.tree,all=TRUE)
 
@@ -135,8 +134,8 @@ text(pruned.tree,all=TRUE)
 # TODO comment results from tree since change
 
 (iii)
-```{r 2 }
-pred.tree <- predict(fit.tree,newdata=test)
+```{r 2c_iii}
+pred.tree <- predict(pruned.tree,newdata=test)
 mse.tree <- mean((test$wage - pred.tree)^2)
 
 print("The mse prediciton error for the gam is")
@@ -155,16 +154,16 @@ We can see that the prediction error for the regression tree is the highest this
 ## Task 3
 
 Load the data
-```{r 3 }
+```{r 3_data}
 vert <- read.csv("https://www.uio.no/studier/emner/matnat/math/STK2100/v25/oblig/vertebral-column.csv",header=TRUE)
-head(vert)
+#head(vert)
 
 vert$class <- as.factor(vert$class)
 ```
 
 a) (i)
 We can make sure to keep the same proportions of the two classes if we sample from them individually
-```{r 3a (i)}
+```{r 3a_i}
 index_0 <- which(vert$class == 0)
 index_1 <- which(vert$class == 1)
 
@@ -177,7 +176,7 @@ test <- vert[-train_index,]
 ```
 
 (ii)
-```{r 3a (ii)}
+```{r 3a_ii}
 fit.logit <- glm(class ~., data=train,family=binomial)
 summary(fit.logit)
 ```
@@ -185,7 +184,7 @@ It seems that only degrS and pelVRad along with the intercept are significant fo
 
 
 (iii)
-```{r 3c (iii)}
+```{r 3c_iii}
 pred.prob <- predict(fit.logit, newdata=test,type="response")
 pred.logit <- ifelse(pred.prob > 0.5,1,0)
 logit.error <- mean(pred.logit != test$class)
@@ -194,14 +193,14 @@ print(logit.error)
 ```
 
 b) (i)
-```{r 3b (i)}
+```{r 3b_i}
 library("MASS")
 
 fit.lda <- lda(class ~., data=train)
 ```
 
 (ii)
-```{r 3b (ii)}
+```{r 3b_ii}
 pred.lda <- predict(fit.lda, newdata=test)
 lda.error <- mean(pred.lda$class != test$class)
 
@@ -210,12 +209,12 @@ print(lda.error)
 The LDA model assumes a gaussian distribution with linear decision boundries. Our logistic model seems to do slighlty better than lda. This might imply that the gaussian assumption does not fit our data. The simple model therefore makes a better approximation.
 
 #c) (i)
-```{r 3c (i)}
+```{r 3c_i}
 fit.qda <- qda(class ~., data=train)
 ```
 
 (ii)
-```{r 3c (ii)}
+```{r 3c_ii}
 pred.qda <- predict(fit.qda, newdata=test)
 qda.error <- mean(pred.qda$class != test$class)
 
@@ -230,7 +229,7 @@ Ive decided to normalize the data slightly different to the lecture in week 12, 
 
 I instead therefore use the mean and standard deviation of the training data to standardize the test set
 
-```{r 3d (normalize data)}
+```{r 3d_normalize data}
 library("nnet")
 
 train_scaled <- scale(train[, -which(names(train) == "class")]) #We dont normalize the qualtiative variable since it is not continious
@@ -247,7 +246,7 @@ Ive decided to combine (i) and (ii) slightly i want to evaluate right after fini
 
 I also dont want to iterate throughn decays and then find the best, and then afterwards iterate through sizes. As i dont think this will necessarily find the best decay/size combination. I therefore iterate through every single combination. This should not be computationally heavy as these are very simple neural networks.
 
-```{r 3 (i/ii)}
+```{r 3_i_ii}
 
 sizes <- c(1, 2, 3, 4, 5, 6, 7, 8, 10)
 decays <- c(0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1)
@@ -265,12 +264,12 @@ for (i in 1:nrow(results)) {
     results$error[i] <- mean(pred.class != test.standard$class)
 } 
 ordered.results <- results[order(results$error),]
-print(ordered.results[0:10,])
+print(ordered.results[0:7,])
 ```
 
 
 There seem to really be no clear pattern on what decay values und3er 0.1 are the best and there also seem to be no apparent benefit to having a larger network
-```{r 3 (i/ii)}
+```{r 3_i_ii_2}
 print("The error from the logistic regression is:") 
 print(logit.error)
 print("The error from the LDA is:") 
@@ -280,7 +279,7 @@ print(qda.error)
 print("The smallest error for the single layer neural network is:") 
 print(ordered.results[1,])
 ```
-#The neural network seems to do the best followed by the logistic regression. It seems like making linear assumptions regarding the splitting of the data does well, hence why the lda with linear decision boundries does better than qda. This also applies for logistic regression which is also linear in its boundries. Im a bit confused on how a signle layer neural network does better. As it is also only linear when it doesnt have multiple layers.
+The neural network seems to do the best followed by the logistic regression. It seems like making linear assumptions regarding the splitting of the data does well, hence why the lda with linear decision boundries does better than qda. This also applies for logistic regression which is also linear in its boundries. Im a bit confused on how a signle layer neural network does better. As it is also only linear when it doesnt have multiple layers.
 But there seems to be a high variance in terms of which parameters gets the best test error. As they seem to change with every iteration of the script. 
 
 In conclusion the models which makes more linear assumptions does better. Which means non linear fitting by qda, overfits nonlinearly to the training data. Neural networks seems to do the bast, but this may come from us fitting many different models rather than a single layer neural network being superior.
